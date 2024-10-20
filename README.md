@@ -1,4 +1,4 @@
-## Expense Sharing Application - Backend API
+<title>Expense Sharing Application - Backend API<title>
 
 This project is a backend API for an expense sharing application built with Django REST Framework (DRF). The API allows users to manage and share expenses, authenticate using JWT tokens, and retrieve their personal data along with their expense details.
 Features
