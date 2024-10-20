@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status,generics
+from rest_framework import status, generics
 from .serializers import UserSerializer, RepresentativeSerializer, LoginSerializer, ExpenseSerializer
 from .models import User, Expense, ExpenseSplit
 import datetime
@@ -10,13 +10,13 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from django.db.models import Sum
 import csv
-from django.http import HttpResponse
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers
 
-# Create your views here.
+# Views for the expense-sharing application
 
+# Signup view for user registration
 class SignupView(APIView):
     @swagger_auto_schema(request_body=UserSerializer,
     responses={200: "User created successfully", 400: "Invalid credentials or errors"})
@@ -28,17 +28,19 @@ class SignupView(APIView):
             return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# Serializer for login
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField()
+    email = serializers.EmailField()  # User's email
+    password = serializers.CharField()  # User's password
 
+# Login view for user authentication
 class LoginView(APIView):
     @swagger_auto_schema(
         request_body=LoginSerializer,
         responses={200: "User logged in successfully", 400: "Invalid credentials or errors"}
     )
     def post(self, request):
-        # Use serializer to validate the request data
+        # Use serializer to validate request data
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data['email']
@@ -53,6 +55,8 @@ class LoginView(APIView):
             except User.DoesNotExist:
                 return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Function to decode JWT and retrieve user information
 def get_user_from_token(request):
     token = request.META.get('HTTP_AUTHORIZATION', '').replace('Bearer ', '')
 
@@ -72,7 +76,7 @@ def get_user_from_token(request):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
+# Function to generate JWT token for a user
 def generate_jwt_token(user):
     payload = {
         'user_id': user.id,
@@ -82,7 +86,7 @@ def generate_jwt_token(user):
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
     return token
 
-
+# View to fetch user's expenses
 @api_view(['GET'])
 def user_expenses(request):
     user = get_user_from_token(request)
@@ -94,7 +98,9 @@ def user_expenses(request):
         'user': serializer.data,
     }, status=status.HTTP_200_OK)
 
-@swagger_auto_schema(methods=['post'], operation_description="Create an Expense")
+# View to create a new expense
+@swagger_auto_schema(methods=['post'], operation_description="Create an Expense", 
+request_body=ExpenseSerializer, responses={201: "Expense created successfully", 400: "(Bad Request): Raised when the input validation fails (e.g., missing or invalid fields)."})
 @api_view(['POST'])
 def create_expense(request):
     user = get_user_from_token(request)
@@ -109,7 +115,10 @@ def create_expense(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@swagger_auto_schema(methods=['get'], operation_description="Retrieve User Expenses")
+# View to retrieve user's balance with other users
+@swagger_auto_schema(methods=['get'], operation_description="Retrieve User Balance"
+,responses={200: "User balance retrieved successfully", 401 : "(Unauthorized): Raised when the token is invalid, missing, or expired.",
+404 : "(Not Found): Raised when the requested resource (like a user or expense) cannot be found.", 400: "(Bad Request): Raised when the input validation fails (e.g., missing or invalid fields)."})
 @api_view(['GET'])
 def user_balance_view(request):
     user = get_user_from_token(request)
@@ -117,6 +126,8 @@ def user_balance_view(request):
         return user
 
     user = user.get('id')
+    
+    # Get amounts the user owes to others
     owes_to = (
         ExpenseSplit.objects.filter(user=user)
         .exclude(expense__user=user)
@@ -125,7 +136,7 @@ def user_balance_view(request):
         .order_by('-total_owed')
     )
 
-    # Owed by other users
+    # Get amounts owed to the user by others
     owed_from = (
         ExpenseSplit.objects.filter(expense__user=user)
         .exclude(user=user)
@@ -134,7 +145,7 @@ def user_balance_view(request):
         .order_by('-total_owed')
     )
 
-    # Format the response
+    # Format the response data
     owes_to_data = [
         {
             'to_user': User.objects.get(pk=item['expense__user']).name,
@@ -156,22 +167,8 @@ def user_balance_view(request):
         'owed_from': owed_from_data
     })
 
-class UserExpensesView(generics.ListAPIView):
-    serializer_class = ExpenseSerializer
 
-    def get_queryset(self):
-        user = get_user_from_token(self.request)
-        
-        if isinstance(user, Response):
-            return user
-
-        return Expense.objects.filter(user=user)
-    
-    def get(self, request, *args, **kwargs):
-        expenses = self.get_queryset()
-        serializer = self.get_serializer(expenses, many=True)
-        return JsonResponse(serializer.data, safe=False)
-
+# View to list overall expenses for all users
 class OverallExpensesView(generics.ListAPIView):
     queryset = Expense.objects.all()
     serializer_class = ExpenseSerializer
@@ -181,11 +178,14 @@ class OverallExpensesView(generics.ListAPIView):
         serializer = self.get_serializer(expenses, many=True)
         return JsonResponse(serializer.data, safe=False)
 
-
+# View to download the balance sheet as a CSV
 def download_balance_sheet(request):
+    
+    user = get_user_from_token(request)
     if isinstance(user, Response):
         return user
     user_id = user.get('id')
+    
     splits = ExpenseSplit.objects.filter(user=user_id)
 
     # Create the HttpResponse object with the appropriate CSV header.
@@ -193,15 +193,21 @@ def download_balance_sheet(request):
     response['Content-Disposition'] = f'attachment; filename="balance_sheet_{user.get('name')}.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['Expense', 'Amount Owed', 'Split Type', 'Percentage', 'Date'])
+    writer.writerow(['Expense', 'Amount Owed', 'Split Type', 'Percentage', 'Date', 'Owed To/From'])
 
     for split in splits:
+        if split.expense.user == user_id:
+            owed_to_from = f'owed from {split.user.name}'
+        else:
+            owed_to_from = f'owed to {split.expense.user.name}'
         writer.writerow([
             split.expense.description,
             split.amount_owed,
             split.split_type,
             split.percentage if split.split_type == 'percentage' else 'N/A',
-            split.expense.created_at
+            split.expense.created_at,
+            owed_to_from
         ])
 
     return response
+
