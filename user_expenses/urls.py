@@ -27,7 +27,6 @@ urlpatterns = [
     path('expenses/user/', UserExpensesView.as_view(), name='user-expenses'),
     path('expenses/overall/', OverallExpensesView.as_view(), name='overall-expenses'),
     path('expenses/balance-sheet/', download_balance_sheet, name='download-balance-sheet'),
-    re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 
 ]

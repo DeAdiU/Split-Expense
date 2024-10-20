@@ -1,22 +1,28 @@
-<title>Expense Sharing Application - Backend API<title>
+# Daily Expenses Sharing Application
 
-This project is a backend API for an expense sharing application built with Django REST Framework (DRF). The API allows users to manage and share expenses, authenticate using JWT tokens, and retrieve their personal data along with their expense details.
-Features
+A backend API for managing daily shared expenses, built using Django REST Framework (DRF). The app supports splitting expenses equally, by exact amounts, or by percentages, with features for user management, expense management, and balance sheet generation.
 
- 1.   User Authentication using JWT tokens.
-2. Expense Management: Create, view, and manage expenses.
-  3.  User-specific Data: Retrieve expenses for a specific user based on the authenticated token.
-  4.  Secure API Endpoints: All endpoints are protected using JWT authentication.
+## Features
 
-## Technologies Used
+- User registration, authentication (JWT-based).
+- Expense creation and splitting among multiple users.
+- Support for splitting:
+  - Equally
+  - By exact amounts
+  - By percentages
+- Balance sheet generation to track owed and paid amounts.
 
-   1. Django (Python Web Framework)
-   2. Django REST Framework (for building REST APIs)
-    3. PyJWT (for JWT-based authentication)
-   4. drf-yasg (for auto-generating Swagger/OpenAPI documentation)
-   5. PostgreSQL (or any other database supported by Django)
+## Requirements
 
-Prerequisites
+- Python 3.12+
+- Django 4.x
+- Django REST Framework
+- PyJWT
 
-    Python 3.10+
-    pip (Python package manager)
+## Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/yourusername/expenses-sharing-app.git
+   cd expenses-sharing-app
