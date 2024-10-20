@@ -27,7 +27,7 @@ class User(models.Model):
         return check_password(raw_password, self.password)
 
     def __str__(self):
-        return self.email
+        return f"{self.id} - {self.email}"
 
 class Expense(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
