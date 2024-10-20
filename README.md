@@ -24,5 +24,39 @@ A backend API for managing daily shared expenses, built using Django REST Framew
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/expenses-sharing-app.git
-   cd expenses-sharing-app
+   git clone https://github.com/DeAdiU/Split-Expense.git
+   cd Split-Expense
+
+2. Create a virtual environment and install dependencies:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+
+3. Apply migrations and run the server:
+    ```bash 
+    python manage.py makemigrations
+    python manage.py migrate
+    python manage.py runserver
+
+## API Endpoints
+
+1. Authentication:
+    - Login - `/login`/ (POST)
+    - Register - `/register`/ (POST)
+2. User Expense Management:
+    - Create Expense - `/create_expense/` (POST)
+    - Get Balance - `/balance/` (GET)
+    - Personal Expense - `/expenses/user/` (GET)
+    - Overall Expense - `/expenses/overall/` (GET)
+    - Balance Sheet - `/expenses/balance-sheet/` (GET)
+3. API Documentation:
+    - Swagger API Docs - `/swagger/` 
+
+## API Documenatation
+
+The project has integrated Swagger for easy API documentation. You can access the Swagger UI by navigating to the `/swagger/` URL when the server is running.
+    
+## Contributing
+
+Contributions are welcome! Please fork the repository and create a pull request to submit changes.
