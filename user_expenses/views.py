@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,generics
-from .serializers import UserSerializer, RepresentativeSerializer, ExpenseSerializer
+from .serializers import UserSerializer, RepresentativeSerializer, LoginSerializer, ExpenseSerializer
 from .models import User, Expense, ExpenseSplit
 import datetime
 import jwt  
@@ -13,36 +13,51 @@ import csv
 from django.http import HttpResponse
 from django.http import JsonResponse
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import serializers
 
 # Create your views here.
 
 class SignupView(APIView):
+    @swagger_auto_schema(request_body=UserSerializer,
+    responses={200: "User created successfully", 400: "Invalid credentials or errors"})
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             token = generate_jwt_token(user)
-            return Response({'token': token}, status=status.HTTP_201_CREATED)
+            return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
 
 class LoginView(APIView):
+    @swagger_auto_schema(
+        request_body=LoginSerializer,
+        responses={200: "User logged in successfully", 400: "Invalid credentials or errors"}
+    )
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        try:
-            user = User.objects.get(email=email)
-            serializer = UserSerializer(user)
-            if user.check_password(password):
-                token = generate_jwt_token(user)
-                return Response({'token': token, 'user':serializer.data}, status=status.HTTP_200_OK)
-            return Response({'error': 'Invalid password'}, status=status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        # Use serializer to validate the request data
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+            try:
+                user = User.objects.get(email=email)
+                user_serializer = UserSerializer(user)
+                if user.check_password(password):
+                    token = generate_jwt_token(user)
+                    return Response({'token': token, 'user': user_serializer.data}, status=status.HTTP_200_OK)
+                return Response({'error': 'Invalid password'}, status=status.HTTP_400_BAD_REQUEST)
+            except User.DoesNotExist:
+                return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 def get_user_from_token(request):
     token = request.META.get('HTTP_AUTHORIZATION', '').replace('Bearer ', '')
+
+    if not token:
+        return Response({'error': 'Missing token'}, status=status.HTTP_401_UNAUTHORIZED)
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
         user = User.objects.get(id=payload['user_id'])
@@ -72,9 +87,8 @@ def generate_jwt_token(user):
 def user_expenses(request):
     user = get_user_from_token(request)
 
-    if user is None:  # Check if the user is None, indicating an error occurred
-        return Response({'error': 'Invalid token or user not found'}, status=status.HTTP_401_UNAUTHORIZED)
-
+    if isinstance(user, Response):
+        return user
     serializer = RepresentativeSerializer(user) 
     return Response({
         'user': serializer.data,
@@ -84,10 +98,10 @@ def user_expenses(request):
 @api_view(['POST'])
 def create_expense(request):
     user = get_user_from_token(request)
+    if isinstance(user, Response):
+        return user
 
-    if user is None:  # Check if the user is None, indicating an error occurred
-        return Response({'error': 'Invalid token or user not found'}, status=status.HTTP_401_UNAUTHORIZED)
-
+    user = user.get('id')
     serializer = ExpenseSerializer(data=request.data)
     
     if serializer.is_valid():
@@ -98,8 +112,11 @@ def create_expense(request):
 @swagger_auto_schema(methods=['get'], operation_description="Retrieve User Expenses")
 @api_view(['GET'])
 def user_balance_view(request):
-    user = get_user_from_token(request).get('id')
-    # Owes to other users
+    user = get_user_from_token(request)
+    if isinstance(user, Response):
+        return user
+
+    user = user.get('id')
     owes_to = (
         ExpenseSplit.objects.filter(user=user)
         .exclude(expense__user=user)
@@ -143,7 +160,11 @@ class UserExpensesView(generics.ListAPIView):
     serializer_class = ExpenseSerializer
 
     def get_queryset(self):
-        user = get_user_from_token(self.request).get('id')  # Authenticated user
+        user = get_user_from_token(self.request)
+        
+        if isinstance(user, Response):
+            return user
+
         return Expense.objects.filter(user=user)
     
     def get(self, request, *args, **kwargs):
@@ -162,7 +183,8 @@ class OverallExpensesView(generics.ListAPIView):
 
 
 def download_balance_sheet(request):
-    user = get_user_from_token(request)
+    if isinstance(user, Response):
+        return user
     user_id = user.get('id')
     splits = ExpenseSplit.objects.filter(user=user_id)
 

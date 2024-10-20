@@ -1,34 +1,42 @@
 from rest_framework import serializers
 from .models import User,Expense, ExpenseSplit
 from decimal import Decimal
+from django.contrib.auth.password_validation import validate_password
 
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'password', 'name']
-
+        fields = ['id', 'email', 'password', 'name', 'mobile_number']
+        extra_kwargs = {
+            'password': {'write_only': True}  
+        }
     def validate(self, data):
         if '@' not in data['email']:
             raise serializers.ValidationError('Not a valid email id')
         try:
             validate_password(data['password'])
-        except ValidationError as e:
+        except serializers.ValidationError as e:
             raise serializers.ValidationError(e.messages)
+        
         return data
 
     def create(self, validated_data):
         user = User(
             email=validated_data['email'],
             name=validated_data['name'],
-            password=validated_data['password'])
+            mobile_number=validated_data['mobile_number']
+        )
+        user.set_password(validated_data['password'])
         user.save()
         return user
-
 class RepresentativeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'name']
+        fields = ['id', 'email', 'name', 'mobile_number']
         
 class ExpenseSplitSerializer(serializers.ModelSerializer):
     class Meta:
