@@ -23,10 +23,10 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('register/', SignupView.as_view(), name='register'),  # User registration
     path('login/', LoginView.as_view(), name='login'),  # User login
-    path('expenses/', user_expenses, name='expenses'),  # Fetch expenses of the authenticated user
+   #  path('expenses/', user_expenses, name='expenses'),  # Fetch expenses of the authenticated user
     path('create_expense/', create_expense, name='create_expense'),  # Create a new expense
     path('balance/', user_balance_view, name='balance'),  # Get balance overview for the user
-   #  path('expenses/user/', UserExpensesView, name='user-expenses'),  # List expenses for a specific user
+    path('expenses/user/', user_expenses, name='user-expenses'),  # List expenses for a specific user
     path('expenses/overall/', OverallExpensesView.as_view(), name='overall-expenses'),  # List overall expenses for all users
     path('expenses/balance-sheet/', download_balance_sheet, name='download-balance-sheet'),  # Download balance sheet
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),  # Swagger UI for API documentation

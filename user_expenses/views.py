@@ -86,18 +86,6 @@ def generate_jwt_token(user):
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
     return token
 
-# View to fetch user's expenses
-@api_view(['GET'])
-def user_expenses(request):
-    user = get_user_from_token(request)
-
-    if isinstance(user, Response):
-        return user
-    serializer = RepresentativeSerializer(user) 
-    return Response({
-        'user': serializer.data,
-    }, status=status.HTTP_200_OK)
-
 # View to create a new expense
 @swagger_auto_schema(methods=['post'], operation_description="Create an Expense", 
 request_body=ExpenseSerializer, responses={201: "Expense created successfully", 400: "(Bad Request): Raised when the input validation fails (e.g., missing or invalid fields)."})
@@ -211,3 +199,25 @@ def download_balance_sheet(request):
 
     return response
 
+@api_view(['GET'])
+def user_expenses(request):
+    user = get_user_from_token(request)
+    if isinstance(user, Response):
+        return user
+    user_id = user.get('id')
+
+    # Fetch the splits related to the user
+    splits = ExpenseSplit.objects.filter(user=user_id)
+
+    balance_sheet_data = []
+
+    for split in splits:
+        balance_sheet_data.append({
+            'expense': split.expense.description,
+            'amount_owed': split.amount_owed,
+            'split_type': split.split_type,
+            'percentage': split.percentage if split.split_type == 'percentage' else 'N/A',
+            'date': split.expense.created_at.isoformat(),
+        })
+
+    return Response(balance_sheet_data)
