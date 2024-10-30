@@ -55,7 +55,7 @@ A backend API for managing daily shared expenses, built using Django REST Framew
 
 ## API Documenatation
 
-The project has integrated Swagger for easy API documentation. You can access the Swagger UI by navigating to the `/swagger/` URL when the server is running.
+The project has integrated Swagger for easy API documentation. You can access the Swagger UI by navigating to the `/swagger/` URL when the server is running. Please use Authorize (enter JWT token) to use protected routes.
     
 ## Contributing
 
